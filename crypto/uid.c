@@ -7,8 +7,13 @@
  * https://www.openssl.org/source/license.html
  */
 
+/* NOTE requires libcap-dev / libcap-devel for compiling */
 #include <openssl/crypto.h>
 #include <openssl/opensslconf.h>
+#ifdef OPENSSL_NETCAP_ALLOW_ENV
+#include <sys/capability.h>
+#include <sys/types.h>
+#endif
 
 #if defined(OPENSSL_SYS_WIN32) || defined(OPENSSL_SYS_VXWORKS) || defined(OPENSSL_SYS_UEFI) || defined(__wasi__)
 
@@ -51,5 +56,41 @@ int OPENSSL_issetugid(void)
 # else
     return getuid() != geteuid() || getgid() != getegid();
 # endif
+}
+#endif
+
+/*
+ * Allows for slightly more permissive environment variable retrieval. Requires capability checks
+ */
+#ifdef OPENSSL_NETCAP_ALLOW_ENV
+/*
+ * Tests to see if a process has ONLY the requested capability
+ */
+int HasOnlyCapability(int capability)
+{
+    cap_t capTest; 
+    cap_t capProc;
+    int   cmp_rc=0;
+    int   set_rc;
+
+    /* Make our capability to test against.  */
+    capTest = cap_init();
+    if (capTest !=NULL)
+    {
+        set_rc=cap_set_flag(capTest,CAP_EFFECTIVE,1,1,CAP_SET);
+        if (set_rc==0)
+        {
+            // get our actual capabilities
+            capProc = cap_get_proc();
+            if (capProc != NULL)
+            {
+                // only if identical do we return true (1)
+                cmp_rc=cap_compare(capProc,capTest);
+                cap_free(capProc);
+            }
+        }
+        cap_free(capTest);
+    }
+    return (cmp_rc);
 }
 #endif
