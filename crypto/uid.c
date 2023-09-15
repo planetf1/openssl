@@ -49,16 +49,6 @@ int OPENSSL_issetugid(void)
 #  endif
 # endif
 
-int OPENSSL_issetugid(void)
-{
-# ifdef OSSL_IMPLEMENT_GETAUXVAL
-    return getauxval(AT_SECURE) != 0;
-# else
-    return getuid() != geteuid() || getgid() != getegid();
-# endif
-}
-#endif
-
 /*
  * Allows for slightly more permissive environment variable retrieval. Requires capability checks
  */
@@ -72,12 +62,15 @@ int HasOnlyCapability(int capability)
     cap_t capProc;
     int   cmp_rc=0;
     int   set_rc;
+    cap_value_t cap_list[CAP_LAST_CAP+1];
+
 
     /* Make our capability to test against.  */
+    cap_list[0] = capability;
     capTest = cap_init();
     if (capTest !=NULL)
     {
-        set_rc=cap_set_flag(capTest,CAP_EFFECTIVE,1,1,CAP_SET);
+        set_rc=cap_set_flag(capTest,CAP_EFFECTIVE,1,&cap_list,CAP_SET);
         if (set_rc==0)
         {
             // get our actual capabilities
@@ -92,5 +85,20 @@ int HasOnlyCapability(int capability)
         cap_free(capTest);
     }
     return (cmp_rc);
+}
+#endif
+
+int OPENSSL_issetugid(void)
+{
+# ifdef OSSL_IMPLEMENT_GETAUXVAL
+#   ifdef OPENSSL_NETCAP_ALLOW_ENV
+      /* AT_SECURE is set if priviliged. We allow this if ONLY NET_BIND capability set */
+      return getauxval(AT_SECURE) != 0 && !HasOnlyCapability(CAP_NET_BIND_SERVICE);
+#   else
+      return getauxval(AT_SECURE) != 0;
+#   endif
+# else
+    return getuid() != geteuid() || getgid() != getegid();
+# endif
 }
 #endif

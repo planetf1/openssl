@@ -45,9 +45,9 @@ int str_in_list(const char *candidate, const char *list[], int n)
 
 char *restricted_getenv(const char *name)
 {
-    /* Extend list as needed */
-    const char * permitted_env [ ] = { "OPENSSL_MODULES" };
-    if(name!=NULL)
+    /* Environment variables to permit in secure mode (subject to conditions). Extend as needed */
+    const char * permitted_env [ ] = { "OPENSSL_MODULES", "OPENSSL_CONF" };
+    if(name!=NULL && (OPENSSL_issetugid()))
     {
       if (str_in_list(name,permitted_env,sizeof(permitted_env)/sizeof(char *)))
       {
@@ -143,7 +143,6 @@ char *ossl_safe_getenv(const char *name)
      */
 #   if defined(OPENSSL_NETCAP_ALLOW_ENV) && defined(__linux__)
      /* Use alternate implementation which allows some exceptions if in a secure environment */
-     if (OPENSSL_issetugid)
        return(restricted_getenv(name));
 #   else
      /* Default to secure retrieval (std library) */
