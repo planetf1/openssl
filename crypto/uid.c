@@ -77,14 +77,15 @@ int HasOnlyCapability(int capability)
             capProc = cap_get_proc();
             if (capProc != NULL)
             {
-                // only if identical do we return true (1)
+                // 0 for exact match
                 cmp_rc=cap_compare(capProc,capTest);
                 cap_free(capProc);
             }
         }
         cap_free(capTest);
     }
-    return (cmp_rc);
+    // true if cmp_rc is 0
+    return (cmp_rc==0);
 }
 #endif
 
@@ -92,8 +93,11 @@ int OPENSSL_issetugid(void)
 {
 # ifdef OSSL_IMPLEMENT_GETAUXVAL
 #   ifdef OPENSSL_NETCAP_ALLOW_ENV
-      /* AT_SECURE is set if priviliged. We allow this if ONLY NET_BIND capability set */
-      return getauxval(AT_SECURE) != 0 && !HasOnlyCapability(CAP_NET_BIND_SERVICE);
+      /* AT_SECURE is set if privileged. We allow this if ONLY NET_BIND capability set */
+      int at_secure = getauxval(AT_SECURE);
+      int has_net_bind_service = HasOnlyCapability(CAP_NET_BIND_SERVICE);
+      return at_secure != 0 && !has_net_bind_service;
+      //return getauxval(AT_SECURE) != 0 && !HasOnlyCapability(CAP_NET_BIND_SERVICE);
 #   else
       return getauxval(AT_SECURE) != 0;
 #   endif
