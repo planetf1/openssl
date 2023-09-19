@@ -13,6 +13,7 @@
 #ifdef OPENSSL_NETCAP_ALLOW_ENV
 #include <sys/capability.h>
 #include <sys/types.h>
+#include <sys/syscall.h>
 #endif
 
 #if defined(OPENSSL_SYS_WIN32) || defined(OPENSSL_SYS_VXWORKS) || defined(OPENSSL_SYS_UEFI) || defined(__wasi__)
@@ -55,37 +56,32 @@ int OPENSSL_issetugid(void)
 #ifdef OPENSSL_NETCAP_ALLOW_ENV
 /*
  * Tests to see if a process has ONLY the requested capability
+ * see kernel/capability.c in the linux kernel source for more details
+ * structs are defined in sys/capability.h
  */
 int HasOnlyCapability(int capability)
 {
-    cap_t capTest; 
-    cap_t capProc;
-    int   cmp_rc=0;
-    int   set_rc;
-    cap_value_t cap_list[CAP_LAST_CAP+1];
 
-
-    /* Make our capability to test against.  */
-    cap_list[0] = capability;
-    capTest = cap_init();
-    if (capTest !=NULL)
-    {
-        set_rc=cap_set_flag(capTest,CAP_EFFECTIVE,1,&cap_list,CAP_SET);
-        if (set_rc==0)
-        {
-            // get our actual capabilities
-            capProc = cap_get_proc();
-            if (capProc != NULL)
-            {
-                // 0 for exact match
-                cmp_rc=cap_compare(capProc,capTest);
-                cap_free(capProc);
-            }
-        }
-        cap_free(capTest);
+    if (!cap_valid(capability)) {
+        return 0;
     }
-    // true if cmp_rc is 0
-    return (cmp_rc==0);
+
+    struct __user_cap_data_struct cap_data[2];
+    struct __user_cap_header_struct cap_header_data = {
+        _LINUX_CAPABILITY_VERSION_3,
+        getpid()};
+
+    if (syscall(SYS_capget, &cap_header_data, &cap_data) != 0) {
+        return 0;
+    }
+
+    if (capability < 32) {
+        return cap_data[0].permitted == (CAP_TO_MASK(capability));
+    }
+    // Probably also need to check [1] - some capabilities are >32
+    // to check for ONLY net_bind we need to ensure these are 0 also
+    
+    return cap_data[1].permitted == (CAP_TO_MASK(capability));
 }
 #endif
 
@@ -95,8 +91,8 @@ int OPENSSL_issetugid(void)
 #   ifdef OPENSSL_NETCAP_ALLOW_ENV
       /* AT_SECURE is set if privileged. We allow this if ONLY NET_BIND capability set */
       int at_secure = getauxval(AT_SECURE);
-      int has_net_bind_service = HasOnlyCapability(CAP_NET_BIND_SERVICE);
-      return at_secure != 0 && !has_net_bind_service;
+      int hasNetBindServiceOnly = HasOnlyCapability(CAP_NET_BIND_SERVICE);
+      return at_secure != 0 && !hasNetBindServiceOnly;
       //return getauxval(AT_SECURE) != 0 && !HasOnlyCapability(CAP_NET_BIND_SERVICE);
 #   else
       return getauxval(AT_SECURE) != 0;
