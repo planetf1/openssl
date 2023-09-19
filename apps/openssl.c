@@ -10,6 +10,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "internal/common.h"
+#ifdef OPENSSL_TEST_PAUSE_FOR_ATTACH
+#include <signal.h>
+#endif
 #include <openssl/bio.h>
 #include <openssl/crypto.h>
 #include <openssl/trace.h>
@@ -250,6 +253,13 @@ int main(int argc, char *argv[])
     bio_in = dup_bio_in(FORMAT_TEXT);
     bio_out = dup_bio_out(FORMAT_TEXT);
     bio_err = dup_bio_err(FORMAT_TEXT);
+
+#if defined(OPENSSL_TEST_PAUSE_FOR_ATTACH)
+    if(getenv("OPENSSL_TEST_PAUSE_FOR_ATTACH"))
+    {
+        raise(SIGSTOP);
+    }
+#endif
 
 #if defined(OPENSSL_SYS_VMS) && defined(__DECC)
     argv = copy_argv(&argc, argv);
