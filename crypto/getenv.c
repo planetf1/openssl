@@ -33,7 +33,7 @@ int str_in_list(const char *candidate, const char *list[], int n)
         int i;
         for ( i=0; i<len; i++)
         {
-            if (strcmp(candidate,list[i]))
+            if (strcmp(candidate,list[i])==0)
               // found
               return 1;
         }
@@ -47,15 +47,14 @@ char *restricted_getenv(const char *name)
 {
     /* Environment variables to permit in secure mode (subject to conditions). Extend as needed */
     const char * permitted_env [ ] = { "OPENSSL_MODULES", "OPENSSL_CONF" };
-    if(name!=NULL && (OPENSSL_issetugid()))
+    if(name!=NULL && (!OPENSSL_issetugid()))
     {
       if (str_in_list(name,permitted_env,sizeof(permitted_env)/sizeof(char *)))
       {
         return getenv(name);
       }
     }
-    // drop-through. Call std library routine
-    return secure_getenv(name);
+    return(secure_getenv(name));
 }
 
 #endif
