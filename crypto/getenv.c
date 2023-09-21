@@ -156,4 +156,3 @@ char *ossl_safe_getenv(const char *name)
     return getenv(name);
 #endif
 }
-
