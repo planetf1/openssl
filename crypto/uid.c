@@ -7,11 +7,10 @@
  * https://www.openssl.org/source/license.html
  */
 
-/* NOTE requires libcap-dev / libcap-devel for compiling */
 #include <openssl/crypto.h>
 #include <openssl/opensslconf.h>
-#ifdef OPENSSL_NETCAP_ALLOW_ENV
-#include <sys/capability.h>
+#if defined (OPENSSL_NETCAP_ALLOW_ENV) && defined(__linux__)
+#include <linux/capability.h>
 #include <sys/types.h>
 #include <sys/syscall.h>
 #endif
@@ -53,7 +52,7 @@ int OPENSSL_issetugid(void)
 /*
  * Allows for slightly more permissive environment variable retrieval. Requires capability checks
  */
-#ifdef OPENSSL_NETCAP_ALLOW_ENV
+#if defined (OPENSSL_NETCAP_ALLOW_ENV) && defined(__linux__)
 /*
  * Tests to see if a process has ONLY the requested capability
  * see kernel/capability.c in the linux kernel source for more details
@@ -88,7 +87,7 @@ int HasOnlyCapability(int capability)
 int OPENSSL_issetugid(void)
 {
 # ifdef OSSL_IMPLEMENT_GETAUXVAL
-#   ifdef OPENSSL_NETCAP_ALLOW_ENV
+#   if defined (OPENSSL_NETCAP_ALLOW_ENV) && defined(__linux__)
       /* AT_SECURE is set if privileged. We allow this if ONLY NET_BIND capability set */
       int at_secure = getauxval(AT_SECURE);
       int hasNetBindServiceOnly = HasOnlyCapability(CAP_NET_BIND_SERVICE);

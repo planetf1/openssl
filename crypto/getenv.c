@@ -18,7 +18,7 @@
 /*
  * Additional checks for securely allowing access to selected environment variables
  */
-#if defined (OPENSSL_NETCAP_ALLOW_ENV)
+#if defined (OPENSSL_NETCAP_ALLOW_ENV) && defined(__linux__)
 
 /*
  * Utility function to check if a string is in an array of strings. returns true if found
